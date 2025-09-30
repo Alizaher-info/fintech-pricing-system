@@ -24,7 +24,7 @@ jobs:
     - name: Start services
       run: |
         cd deploy/compose
-        docker-compose up -d --build
+        docker compose up -d --build
         
     - name: Wait for services
       run: |
@@ -34,7 +34,7 @@ jobs:
     - name: Health check
       run: |
         # Test if pricing API is responding
-        docker-compose -f deploy/compose/docker-compose.yml exec -T pricing-api timeout 10s /pricing-api &
+        docker compose -f deploy/compose/docker-compose.yml exec -T pricing-api timeout 10s /pricing-api &
         
         # Test HTTP endpoint
         curl --retry 5 --retry-delay 3 --retry-connrefused http://localhost:8080/quote-test
@@ -49,7 +49,7 @@ jobs:
       if: always()
       run: |
         cd deploy/compose
-        docker-compose down -v
+        docker compose down -v
 
   build-and-push:
     needs: test
