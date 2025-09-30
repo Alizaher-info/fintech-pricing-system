@@ -26,7 +26,7 @@ COPY services/pricing-api/. .
 RUN go build -o /pricing-api
 
 # Runtime
-FROM gcr.io/distroless/base-debian12:latest
+FROM gcr.io/distroless/base-debian12:debug-nonroot
 COPY --from=build /pricing-api /pricing-api
 EXPOSE 50051
 ENTRYPOINT ["/pricing-api"]
