@@ -1,0 +1,24 @@
+syntax = "proto3";
+package pricing.v1;
+// protoc-gen-php v0.1.0
+option php_namespace = "Pricing\\V1";
+option php_metadata_namespace = "GPBMetadata\\Pricing\\V1";
+
+// wichtig: go_package legt das Zielpaket fest
+option go_package = "pricingapi/gen/pricing/v1;pricingv1";
+
+message QuoteRequest {
+  double amount = 1;
+  int32 term_months = 2;
+  int32 risk_score = 3; // optional
+}
+
+message QuoteResponse {
+  double interest_rate = 1;
+  double apr = 2;
+  double monthly_payment = 3;
+}
+
+service PricingService {
+  rpc Quote(QuoteRequest) returns (QuoteResponse);
+}

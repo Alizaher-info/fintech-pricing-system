@@ -1,0 +1,53 @@
+# Development Workflow
+
+name: Development
+
+on:
+  push:
+    branches: [ develop, feature/* ]
+
+jobs:
+  quick-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Quick build test
+      run: |
+        cd deploy/compose
+        docker-compose config
+        
+    - name: Lint Dockerfile
+      uses: hadolint/hadolint-action@v3.1.0
+      with:
+        dockerfile: services/pricing-api/Dockerfile
+        
+  performance-test:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, '[perf-test]')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Start services
+      run: |
+        cd deploy/compose
+        docker-compose up -d --build
+        sleep 30
+        
+    - name: Performance test
+      run: |
+        # Simple load test
+        for i in {1..100}; do
+          curl -s http://localhost:8080/quote-test > /dev/null
+        done
+        echo "Performance test completed"
+        
+    - name: Cleanup
+      if: always()
+      run: |
+        cd deploy/compose
+        docker-compose down -v

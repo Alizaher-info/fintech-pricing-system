@@ -1,0 +1,17 @@
+# config/services.yaml
+services:
+  _defaults:
+    autowire: true
+    autoconfigure: true
+
+  # App-Code automatisch laden
+  App\:
+    resource: '../src/'
+    exclude:
+      - '../src/Kernel.php'
+      - '../src/Entity/'
+      - '../src/Grpc/'
+      - '../src/Client/'  # Clients sind keine Services
+
+  # Keine gRPC Service-Konfiguration nötig - verwenden statische Factory!
+

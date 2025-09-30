@@ -1,0 +1,44 @@
+services:
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: app
+      MYSQL_USER: app
+      MYSQL_PASSWORD: app
+    ports:
+      - "3307:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+
+  php:
+    build: ../docker/php
+    environment:
+      APP_ENV: dev
+      PRICING_GRPC_TARGET: pricing-api:50051
+    volumes:
+      - ../../backend:/var/www/html
+    depends_on:
+      - db
+      - pricing-api
+
+  nginx:
+    image: nginx:stable
+    ports:
+      - "8080:80"
+    volumes:
+      - ../../backend:/var/www/html:ro
+      - ../docker/nginx/conf.d:/etc/nginx/conf.d:ro
+    depends_on:
+      - php
+
+  pricing-api:
+    build: 
+      context: ../..                         # ⬅️ Repo-Root als Kontext
+      dockerfile: services/pricing-api/Dockerfile
+    ports:
+      - "50051:50051"  # gRPC Port
+
+volumes:
+  db_data:
+

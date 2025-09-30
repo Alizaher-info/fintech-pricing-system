@@ -1,0 +1,76 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Dependency directories
+node_modules/
+vendor/
+
+# Symfony specific
+backend/var/
+backend/.env.local
+backend/.env.local.php
+backend/.env.*.local
+backend/public/bundles/
+backend/var/
+backend/vendor/
+
+# Go specific
+services/*/go.sum
+services/*/vendor/
+services/*/*.exe
+services/*/*.dll
+services/*/*.so
+services/*/*.dylib
+
+# Test binary, build with `go test -c`
+services/*/*test
+
+# Output of the go coverage tool
+services/*/*.out
+
+# Go workspace file
+go.work
+
+# Docker
+.docker/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Environment variables
+.env.local
+.env.production.local
+.env.development.local
+
+# Database
+*.sqlite
+*.db
+
+# Temporary files
+*.tmp
+*.temp
+
+# Generated protobuf files (optional - you might want to commit these)
+# backend/src/Grpc/
+# services/pricing-api/gen/

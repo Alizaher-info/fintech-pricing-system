@@ -1,0 +1,41 @@
+# Generic Dockerfile Template for Go gRPC Services
+# Usage: docker build --build-arg SERVICE_NAME=pricing-api --build-arg PROTO_FILE=pricing/v1/pricing.proto
+
+FROM golang:1.22 AS build
+
+# protoc + plugins installieren
+RUN apt-get update && apt-get install -y protobuf-compiler && rm -rf /var/lib/apt/lists/*
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.34.1 && \
+    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.4.0
+
+WORKDIR /app
+
+# Build arguments for service configuration
+ARG SERVICE_NAME
+ARG SERVICE_PORT=50051
+ARG PROTO_FILE
+
+# Validate required arguments
+RUN test -n "$SERVICE_NAME" || (echo "SERVICE_NAME is required" && exit 1)
+RUN test -n "$PROTO_FILE" || (echo "PROTO_FILE is required" && exit 1)
+
+# Copy go.mod and download dependencies (for better Docker layer caching)
+COPY services/${SERVICE_NAME}/go.mod ./go.mod
+# Copy go.sum if it exists (some projects might not have it)
+COPY services/${SERVICE_NAME}/go.su[m] ./go.sum
+RUN go mod download
+
+# Copy protobuf files and generate Go stubs
+COPY protos/ /proto/
+RUN mkdir -p gen
+RUN protoc -I /proto --go_out=gen --go-grpc_out=gen /proto/${PROTO_FILE}
+
+# Copy service source code and build
+COPY services/${SERVICE_NAME}/. .
+RUN go build -o /app-service
+
+# Runtime stage - minimal distroless image
+FROM gcr.io/distroless/base-debian12
+COPY --from=build /app-service /app-service
+EXPOSE ${SERVICE_PORT}
+ENTRYPOINT ["/app-service"]

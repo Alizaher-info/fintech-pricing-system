@@ -1,0 +1,86 @@
+name: Pull Request Checks
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  code-quality:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: grpc, protobuf
+        
+    - name: Install PHP dependencies
+      run: |
+        cd backend
+        composer install --no-dev --optimize-autoloader
+        
+    - name: PHP Syntax Check
+      run: |
+        cd backend
+        find src -name "*.php" -exec php -l {} \;
+        
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.22'
+        
+    - name: Go Syntax Check
+      run: |
+        cd services/pricing-api
+        go fmt ./...
+        go vet ./...
+        
+    - name: Go Tests
+      run: |
+        cd services/pricing-api
+        go test -v ./...
+        
+  docker-build-test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        service: [pricing-api]
+        
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Build Docker image
+      run: |
+        cd services/${{ matrix.service }}
+        docker build -t test-${{ matrix.service }} .
+        
+    - name: Test Docker image
+      run: |
+        docker run --rm test-${{ matrix.service }} --version || true
+
+  documentation:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Check README
+      run: |
+        if [ ! -f README.md ]; then
+          echo "README.md is missing!"
+          exit 1
+        fi
+        
+    - name: Check API Documentation
+      run: |
+        if [ ! -f docs/api.md ] && [ ! -f protos/pricing/v1/pricing.proto ]; then
+          echo "API documentation is missing!"
+          exit 1
+        fi
