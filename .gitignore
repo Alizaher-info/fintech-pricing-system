@@ -23,7 +23,7 @@ backend/var/
 backend/vendor/
 
 # Go specific
-services/*/go.sum
+# services/*/go.sum  # COMMENTED: go.sum sollte committet werden für Security
 services/*/vendor/
 services/*/*.exe
 services/*/*.dll
