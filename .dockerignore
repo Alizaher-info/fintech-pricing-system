@@ -1,0 +1,24 @@
+# Ignore alles außer was für pricing-api nötig ist
+*
+!services/pricing-api/
+!protos/
+
+# Ignore git und andere Metadaten
+.git
+.gitignore
+README.md
+CONTRIBUTING.md
+test.md
+
+# Ignore andere Services
+backend/
+deploy/
+docs/
+services/event-gateway/
+services/offers-worker/
+
+# Ignore Build-Artefakte
+*/vendor/
+*/node_modules/
+*/var/
+*/.env
