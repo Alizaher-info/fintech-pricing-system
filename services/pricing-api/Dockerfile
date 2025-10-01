@@ -2,8 +2,8 @@ FROM golang:1.22-alpine AS build
 # protoc + plugins installieren - konsolidiert für bessere Layer-Effizienz (Alpine)
 RUN apk update && apk upgrade --available && \
     apk add --no-cache \
-        protobuf-dev \
-        build-base && \
+        protobuf-dev=24.4-r4 \
+        build-base=0.5-r3 && \
     go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.34.1 && \
     go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
 
