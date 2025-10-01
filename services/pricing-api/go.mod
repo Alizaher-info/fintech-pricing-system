@@ -4,7 +4,7 @@ go 1.22
 
 require google.golang.org/grpc v1.65.0
 
-require google.golang.org/protobuf v1.34.1 
+require google.golang.org/protobuf v1.34.1
 
 require (
 	golang.org/x/net v0.25.0 // indirect
