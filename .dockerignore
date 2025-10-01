@@ -1,24 +1,32 @@
-# Ignore alles außer was für pricing-api nötig ist
-*
-!services/pricing-api/
-!protos/
+# Optimized .dockerignore for faster builds
+# Include only what's needed for pricing-api
 
-# Ignore git und andere Metadaten
-.git
+# Git metadata
+.git/
 .gitignore
+
+# Documentation 
 README.md
 CONTRIBUTING.md
 test.md
-
-# Ignore andere Services
-backend/
-deploy/
 docs/
+
+# Other services (not needed for pricing-api)
+backend/vendor/
+backend/var/
 services/event-gateway/
 services/offers-worker/
 
-# Ignore Build-Artefakte
-*/vendor/
-*/node_modules/
-*/var/
-*/.env
+# Build artifacts
+node_modules/
+vendor/
+*.log
+*.tmp
+
+# IDE files
+.vscode/
+.idea/
+
+# Deployment files
+deploy/docker/
+deploy/kubernetes/

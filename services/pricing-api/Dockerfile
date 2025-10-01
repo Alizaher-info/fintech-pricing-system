@@ -1,4 +1,5 @@
 FROM golang:1.22-alpine AS build
+
 # protoc + plugins installieren - konsolidiert für bessere Layer-Effizienz (Alpine)
 RUN apk update && apk upgrade --available && \
     apk add --no-cache \
@@ -8,6 +9,7 @@ RUN apk update && apk upgrade --available && \
     go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
 
 WORKDIR /app
+
 # Modul und main
 COPY services/pricing-api/go.mod ./go.mod
 RUN go mod download
@@ -18,9 +20,10 @@ COPY protos/ ./protos/
 
 # Protobuf-Dateien generieren
 RUN mkdir -p gen/pricing/v1 && \
-    protoc --go_out=. --go_opt=module=pricingapi \
+    protoc --proto_path=protos \
+           --go_out=. --go_opt=module=pricingapi \
            --go-grpc_out=. --go-grpc_opt=module=pricingapi \
-           protos/pricing/v1/pricing.proto
+           pricing/v1/pricing.proto
 
 # Binary erstellen
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o pricing-api
