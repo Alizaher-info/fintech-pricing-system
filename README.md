@@ -114,6 +114,52 @@ $result = $client->quote(10000.0, 24, null);
 PRICING_GRPC_TARGET=pricing-api:50051
 ```
 
+### **Code Standards & Quality**
+
+This project enforces consistent code style across all languages:
+
+#### **PHP Standards (PSR-12 + Symfony)**
+```bash
+# Check code style (dry-run)
+cd backend
+vendor/bin/php-cs-fixer fix --dry-run --diff
+
+# Fix code style automatically
+vendor/bin/php-cs-fixer fix
+
+# Configuration files:
+# .php-cs-fixer.php       → Active project configuration
+# .php-cs-fixer.dist.php  → Symfony standard template
+```
+
+**Key PHP Rules:**
+- ✅ PSR-12 coding standards
+- ✅ Symfony coding conventions  
+- ✅ Short array syntax `[]` instead of `array()`
+- ✅ Alphabetical import ordering
+- ✅ Automatic unused import removal
+- ✅ Excludes `src/Grpc/` (generated protobuf files)
+
+#### **Go Standards (fmt + vet)**
+```bash
+cd services/pricing-api
+
+# Format Go code
+go fmt ./...
+
+# Static analysis & error detection
+go vet ./...
+
+# Run tests
+go test ./...
+```
+
+**Go Standards:**
+- ✅ Standard Go formatting (`gofmt`)
+- ✅ Static analysis (`go vet`)
+- ✅ Proper error handling patterns
+- ✅ Unit tests for business logic
+
 ### **Protobuf Generation:**
 ```bash
 # Generate Go stubs
