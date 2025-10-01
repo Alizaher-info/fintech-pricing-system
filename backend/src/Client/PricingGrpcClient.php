@@ -1,9 +1,13 @@
 <?php
+
+declare(strict_types=1);
+
 namespace App\Client;
 
 use Grpc\ChannelCredentials;
 use Pricing\V1\PricingServiceClient;
 use Pricing\V1\QuoteRequest;
+use RuntimeException;
 
 final class PricingGrpcClient
 {
@@ -12,7 +16,7 @@ final class PricingGrpcClient
     public function __construct(string $target)
     {
         $this->client = new PricingServiceClient($target, [
-            "credentials" => ChannelCredentials::createInsecure(),
+            'credentials' => ChannelCredentials::createInsecure(),
         ]);
     }
 
@@ -24,19 +28,19 @@ final class PricingGrpcClient
 
         // Handle options array for riskScore
         $riskScore = $options['riskScore'] ?? null;
-        if ($riskScore !== null) {
+        if (null !== $riskScore) {
             $req->setRiskScore($riskScore);
         }
 
         [$resp, $status] = $this->client->Quote($req)->wait();
         if ($status->code !== \Grpc\STATUS_OK) {
-            throw new \RuntimeException("gRPC error: ".$status->details, $status->code);
+            throw new RuntimeException('gRPC error: '.$status->details, $status->code);
         }
 
         return [
-            "interestRate"   => $resp->getInterestRate(),
-            "apr"            => $resp->getApr(),
-            "monthlyPayment" => $resp->getMonthlyPayment(),
+            'interestRate' => $resp->getInterestRate(),
+            'apr' => $resp->getApr(),
+            'monthlyPayment' => $resp->getMonthlyPayment(),
         ];
     }
 }
