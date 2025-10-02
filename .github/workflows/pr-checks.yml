@@ -57,8 +57,7 @@ jobs:
       
     - name: Build Docker image
       run: |
-        cd services/${{ matrix.service }}
-        docker build -t test-${{ matrix.service }} .
+        docker build -f services/${{ matrix.service }}/Dockerfile -t test-${{ matrix.service }} .
         
     - name: Test Docker image
       run: |
