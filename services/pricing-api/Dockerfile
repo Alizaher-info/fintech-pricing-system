@@ -1,3 +1,4 @@
+
 FROM golang:1.22-alpine AS build
 
 # protoc + plugins installieren - konsolidiert für bessere Layer-Effizienz (Alpine)
