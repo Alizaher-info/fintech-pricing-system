@@ -1,0 +1,32 @@
+# Optimized .dockerignore for faster builds
+# Include only what's needed for pricing-api
+
+# Git metadata
+.git/
+.gitignore
+
+# Documentation 
+README.md
+CONTRIBUTING.md
+test.md
+docs/
+
+# Other services (not needed for pricing-api)
+backend/vendor/
+backend/var/
+services/event-gateway/
+services/offers-worker/
+
+# Build artifacts
+node_modules/
+vendor/
+*.log
+*.tmp
+
+# IDE files
+.vscode/
+.idea/
+
+# Deployment files
+deploy/docker/
+deploy/kubernetes/
