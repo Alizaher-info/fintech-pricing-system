@@ -72,23 +72,17 @@ jobs:
       
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
-      
-    - name: Cache Docker layers
-      uses: actions/cache@v4
       with:
-        path: /tmp/.buildx-cache
-        key: ${{ runner.os }}-buildx-${{ matrix.service }}-${{ github.sha }}
-        restore-keys: |
-          ${{ runner.os }}-buildx-${{ matrix.service }}-
-          
-    - name: Build Docker image
+        driver: docker-container
+        
+    - name: Build Docker image (with GitHub Actions cache)
       uses: docker/build-push-action@v5
       with:
         context: .
         file: services/${{ matrix.service }}/Dockerfile
         tags: test-${{ matrix.service }}:latest
-        cache-from: type=local,src=/tmp/.buildx-cache
-        cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
         load: true
         
     - name: Test Docker image
@@ -101,11 +95,6 @@ jobs:
         sleep 2
         docker logs test-server-${{ matrix.service }} | grep -q "listening on" && echo "✅ Server starts correctly"
         docker stop test-server-${{ matrix.service }} || true
-        
-    - name: Move cache
-      run: |
-        rm -rf /tmp/.buildx-cache
-        mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
   documentation:
     runs-on: ubuntu-latest
