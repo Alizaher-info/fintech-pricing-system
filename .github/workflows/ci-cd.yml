@@ -21,10 +21,11 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - name: Start services
+    - name: Start services (use pre-built images)
       run: |
         cd deploy/compose
-        docker compose up -d --build
+        # Use images already built and tested in PR checks
+        docker compose up -d --no-build
         
     - name: Wait for services
       run: |
