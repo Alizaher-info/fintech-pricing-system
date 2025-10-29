@@ -5,7 +5,7 @@ option php_namespace = "Pricing\\V1";
 option php_metadata_namespace = "GPBMetadata\\Pricing\\V1";
 
 // wichtig: go_package legt das Zielpaket fest
-option go_package = "pricingapi/gen/pricing/v1;pricingv1";
+option go_package = "services/pricing-api/gen/pricing/v1;pricingv1";
 
 message QuoteRequest {
   double amount = 1;

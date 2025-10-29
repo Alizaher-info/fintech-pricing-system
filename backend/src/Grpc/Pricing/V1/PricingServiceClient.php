@@ -4,6 +4,7 @@
 namespace Pricing\V1;
 
 /**
+ * The PricingService provides loan pricing calculations.
  */
 class PricingServiceClient extends \Grpc\BaseStub {
 
@@ -17,6 +18,7 @@ class PricingServiceClient extends \Grpc\BaseStub {
     }
 
     /**
+     * Calculate a loan quote based on amount, term, and risk score.
      * @param \Pricing\V1\QuoteRequest $argument input argument
      * @param array $metadata metadata
      * @param array $options call options

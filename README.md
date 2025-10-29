@@ -20,11 +20,234 @@ HTTP Request → nginx → PHP Symfony → gRPC Client → Go Service → Respon
 
 ## 🎯 **Key Features**
 
-- ✅ **gRPC Communication** - High-performance inter-service communication
+- ✅ **JWT Authentication** - Secure token-based authentication system
+- ✅ **gRPC Communication** - High-performance inter-service communication  
+- ✅ **End-to-End Security** - JWT tokens propagated through entire request chain
+- ✅ **Role-Based Access** - Admin/User role differentiation with pricing tiers
 - ✅ **Factory Pattern** - Elegant solution for gRPC + Symfony DI challenges
 - ✅ **Docker Compose** - Full containerization with multi-service orchestration
 - ✅ **Protocol Buffers** - Type-safe service contracts
 - ✅ **Clean Architecture** - Proper separation of concerns
+
+## 🔐 **Security Architecture**
+
+### **JWT Authentication Flow**
+
+```
+Client → PHP Login → JWT Token → Authenticated Requests → gRPC with Token → Go Service
+```
+
+#### **1. Authentication Endpoints**
+
+**Login:**
+```http
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@example.com", 
+  "password": "admin123"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+  "user": {
+    "id": 1,
+    "email": "admin@example.com",
+    "role": "admin"
+  }
+}
+```
+
+**Token Validation:**
+```http
+GET /api/auth/validate
+Authorization: Bearer <JWT_TOKEN>
+```
+
+#### **2. Secure API Endpoints**
+
+**Authenticated Quote Request:**
+```http
+POST /api/secure/quote
+Authorization: Bearer <JWT_TOKEN>
+Content-Type: application/json
+
+{
+  "amount": 15000,
+  "termMonths": 36, 
+  "riskScore": 750
+}
+```
+
+**Response with User Context:**
+```json
+{
+  "success": true,
+  "data": {
+    "interestRate": 0.044,    // Lower rate for admin users
+    "apr": 0.049,
+    "monthlyPayment": 445.83
+  },
+  "user": {
+    "id": 1,
+    "role": "admin"           // User context preserved
+  }
+}
+```
+
+### **3. JWT Token Propagation**
+
+The system implements **end-to-end security** by propagating JWT tokens through the entire request chain:
+
+```
+HTTP Client → PHP Symfony → gRPC Client → Go gRPC Server
+     |             |             |             |
+     JWT       Extract JWT   Forward JWT    Validate JWT
+    Token      from Header   in Metadata   & Extract User
+```
+
+#### **PHP Implementation (SecureQuoteController.php):**
+```php
+// 1. Validate JWT token
+$user = $this->authenticator->requireAuth($request);
+
+// 2. Extract original JWT token
+$authHeader = $request->headers->get('Authorization');
+$jwtToken = substr($authHeader, 7); // Remove "Bearer "
+
+// 3. Forward to gRPC with authentication
+$options = [
+    'userId' => $user['user_id'],
+    'userRole' => $user['role'],
+    'jwt_token' => $jwtToken     // Forward token
+];
+
+$result = $this->pricingClient->quote($amount, $termMonths, $options);
+```
+
+#### **Go gRPC Implementation (auth/interceptor.go):**
+```go
+func (a *AuthInterceptor) authorize(ctx context.Context) (context.Context, error) {
+    // Extract JWT from gRPC metadata
+    md, ok := metadata.FromIncomingContext(ctx)
+    authHeader := values[0]
+    token := strings.TrimPrefix(authHeader, "Bearer ")
+    
+    // Validate JWT token
+    claims, err := a.jwtManager.ValidateToken(token)
+    
+    // Add user context to request
+    userCtx := context.WithValue(ctx, "user_id", claims.UserID)
+    userCtx = context.WithValue(userCtx, "user_role", claims.Role)
+    
+    return userCtx, nil
+}
+```
+
+### **4. Role-Based Pricing Logic**
+
+The Go service implements **dynamic pricing** based on user roles:
+
+```go
+func (s *server) Quote(ctx context.Context, r *pricingv1.QuoteRequest) (*pricingv1.QuoteResponse, error) {
+    // Extract user context from JWT
+    userRole := auth.GetUserRole(ctx)
+    
+    // Base rate calculation
+    rate := 0.049
+    
+    // Premium pricing for admin users
+    if userRole == "admin" {
+        rate = 0.039  // Better rate for admin users
+    }
+    
+    // Risk-based adjustments
+    if r.GetRiskScore() > 750 {
+        rate -= 0.005  // Lower risk, lower rate
+    }
+    
+    return &pricingv1.QuoteResponse{
+        InterestRate:   rate,
+        Apr:            rate + 0.005,
+        MonthlyPayment: monthly,
+    }, nil
+}
+```
+
+### **5. Security Configuration**
+
+#### **JWT Settings:**
+```php
+// PHP JWT Configuration (JWTAuthenticator.php)
+$this->secretKey = $_ENV['JWT_SECRET'] ?? 'your-secret-key';
+$this->issuer = $_ENV['JWT_ISSUER'] ?? 'fintech-api';
+
+// Token expiration: 24 hours
+'exp' => time() + (24 * 60 * 60)
+```
+
+#### **Go JWT Validation:**
+```go
+// Go JWT Configuration (jwt/manager.go)
+func NewManager(secret, issuer string) *Manager {
+    return &Manager{
+        secretKey: []byte(secret),
+        issuer:    issuer,
+    }
+}
+
+// Validate with HMAC-SHA256
+token.Method.(*jwt.SigningMethodHMAC)
+```
+
+### **6. Test User Accounts**
+
+**Admin User:**
+- Email: `admin@example.com`
+- Password: `admin123`
+- Benefits: Lower interest rates, admin endpoints access
+
+**Regular User:**  
+- Email: `user@example.com`
+- Password: `user123`
+- Benefits: Standard rates, basic endpoints
+
+### **7. Security Headers & gRPC Metadata**
+
+**HTTP Headers:**
+```http
+Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
+Content-Type: application/json
+```
+
+**gRPC Metadata:**
+```go
+metadata := map[string][]string{
+    "authorization": {"Bearer " + jwtToken},
+}
+```
+
+### **8. Error Handling**
+
+**Authentication Errors:**
+```json
+{
+  "success": false,
+  "error": "Invalid token: signature is invalid",
+  "code": 401
+}
+```
+
+**gRPC Authentication Errors:**
+```
+Code: 16 (UNAUTHENTICATED)
+Details: "missing authorization header"
+```
 
 ## 🚀 **Quick Start**
 
@@ -43,13 +266,73 @@ cd portfolio-finance
 cd deploy/compose
 docker-compose up -d
 
-# Test the system
-curl http://localhost:8080/quote-test
+# Test the authentication system
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@example.com","password":"admin123"}'
 ```
 
 **Expected Response:**
 ```json
-{"interestRate":0.049,"apr":0.054,"monthlyPayment":457.5}
+{
+  "success": true,
+  "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+  "user": {"id": 1, "email": "admin@example.com", "role": "admin"}
+}
+```
+
+**Test Secure Quote (replace TOKEN with actual JWT):**
+```bash
+curl -X POST http://localhost:8080/api/secure/quote \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"amount":10000,"termMonths":24,"riskScore":720}'
+```
+
+## 🧪 **Testing with Postman**
+
+### **Import Ready-to-Use Collection**
+
+1. **Login Request:**
+   ```
+   POST http://localhost:8080/api/auth/login
+   Body: {"email":"admin@example.com","password":"admin123"}
+   ```
+
+2. **Extract JWT Token** (use in subsequent requests):
+   ```javascript
+   // Postman Test Script
+   pm.test("Login successful", function () {
+       var jsonData = pm.response.json();
+       pm.expect(jsonData.success).to.eql(true);
+       pm.environment.set("jwt_token", jsonData.token);
+   });
+   ```
+
+3. **Secure Quote Request:**
+   ```
+   POST http://localhost:8080/api/secure/quote
+   Headers: Authorization: Bearer {{jwt_token}}
+   Body: {"amount":15000,"termMonths":36,"riskScore":750}
+   ```
+
+4. **Admin vs User Testing:**
+   - Admin user gets rate: `0.039` (better pricing)
+   - Regular user gets rate: `0.049` (standard pricing)
+
+### **Expected API Responses**
+
+**Admin Quote Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "interestRate": 0.039,     // Admin discount applied
+    "apr": 0.044,
+    "monthlyPayment": 445.83
+  },
+  "user": {"role": "admin"}    // Role context preserved
+}
 ```
 
 ## 📁 **Project Structure**
@@ -81,6 +364,29 @@ portfolio-finance/
 
 ## 🔧 **Technical Highlights**
 
+### **JWT + gRPC Security Integration:**
+
+**Challenge:** Propagating HTTP JWT tokens through gRPC metadata while maintaining user context.
+
+**Solution:** Seamless token forwarding with context preservation:
+
+```php
+// PHP: Extract and forward JWT
+$authHeader = $request->headers->get('Authorization');
+$jwtToken = substr($authHeader, 7);
+
+$options = ['jwt_token' => $jwtToken];
+$result = $this->pricingClient->quote($amount, $termMonths, $options);
+```
+
+```go
+// Go: Validate JWT and set user context  
+metadata := map[string][]string{
+    "authorization": {"Bearer " + token},
+}
+userCtx := context.WithValue(ctx, "user_role", claims.Role)
+```
+
 ### **gRPC + Symfony Integration Challenge:**
 
 **Problem:** Symfony's Dependency Injection compiles at build-time, but gRPC protobuf classes are autoloaded at runtime.
@@ -103,7 +409,24 @@ use App\Client\PricingGrpcClientFactory;
 
 // Environment-based configuration
 $client = PricingGrpcClientFactory::createFromEnv();
-$result = $client->quote(10000.0, 24, null);
+$result = $client->quote(10000.0, 24, ['jwt_token' => $token]);
+```
+
+### **Protocol Buffer Synchronization:**
+
+**Challenge:** Keeping PHP and Go protobuf files synchronized after proto changes.
+
+**Solution:** Automated regeneration workflow:
+
+```bash
+# Update pricing.proto
+option go_package = "services/pricing-api/gen/pricing/v1;pricingv1";
+
+# Regenerate Go files
+protoc --go_out=. --go-grpc_out=. pricing/v1/pricing.proto
+
+# Regenerate PHP files  
+protoc --php_out=backend/src/Grpc pricing/v1/pricing.proto
 ```
 
 ## 🛠️ **Development**

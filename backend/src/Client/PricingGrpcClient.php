@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Client;
 
-use Grpc\ChannelCredentials;
 use Pricing\V1\PricingServiceClient;
 use Pricing\V1\QuoteRequest;
+use Pricing\V1\QuoteResponse;
 use RuntimeException;
 
 final class PricingGrpcClient
@@ -16,13 +16,14 @@ final class PricingGrpcClient
     public function __construct(string $target)
     {
         $this->client = new PricingServiceClient($target, [
-            'credentials' => ChannelCredentials::createInsecure(),
+            'credentials' => \Grpc\ChannelCredentials::createInsecure(),
         ]);
     }
 
     public function quote(float $amount, int $termMonths, ?array $options = null): array
     {
         $req = new QuoteRequest();
+        $resp = new QuoteResponse();
         $req->setAmount($amount);
         $req->setTermMonths($termMonths);
 
@@ -32,8 +33,14 @@ final class PricingGrpcClient
             $req->setRiskScore($riskScore);
         }
 
-        [$resp, $status] = $this->client->Quote($req)->wait();
-        if ($status->code !== \Grpc\STATUS_OK) {
+        // Add JWT token to metadata for authentication
+        $metadata = [];
+        if (isset($options['jwt_token'])) {
+            $metadata['authorization'] = ['Bearer ' . $options['jwt_token']];
+        }
+
+        [$resp, $status] = $this->client->Quote($req, $metadata)->wait();
+        if ($status->code !== 0) { // 0 is STATUS_OK
             throw new RuntimeException('gRPC error: '.$status->details, $status->code);
         }
 
