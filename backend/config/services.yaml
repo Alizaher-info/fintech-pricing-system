@@ -4,14 +4,25 @@ services:
     autowire: true
     autoconfigure: true
 
-  # App-Code automatisch laden
+  # App-Code 
   App\:
     resource: '../src/'
     exclude:
       - '../src/Kernel.php'
       - '../src/Entity/'
       - '../src/Grpc/'
-      - '../src/Client/'  # Clients sind keine Services
+      - '../src/Client/' 
 
-  # Keine gRPC Service-Konfiguration nötig - verwenden statische Factory!
+  # Redis client for rate limiting
+  redis.rate_limiter:
+    class: Predis\Client
+    arguments:
+      - 'redis://redis:6379/1'
+
+  # Rate limiter service with Redis backend
+  App\Service\RateLimiterService:
+    arguments:
+      $rateLimiterCache: '@cache.rate_limiter'
+      $redisClient: '@redis.rate_limiter'
+
 

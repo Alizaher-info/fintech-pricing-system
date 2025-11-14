@@ -12,7 +12,10 @@ services:
       - db_data:/var/lib/mysql
 
   php:
-    build: ../docker/php
+    build: 
+      context: ../../backend
+      dockerfile: ../deploy/docker/php/Dockerfile
+      target: development
     environment:
       APP_ENV: dev
       PRICING_GRPC_TARGET: pricing-api:50051
@@ -39,6 +42,48 @@ services:
     ports:
       - "50051:50051"  # gRPC Port
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  # Frontend Services
+  frontend-dev:
+    build:
+      context: ../../frontend/pricing-dashboard
+      dockerfile: Dockerfile
+      target: development
+    ports:
+      - "5173:5173"
+    volumes:
+      - ../../frontend/pricing-dashboard:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:8080/api
+    networks:
+      - default
+    profiles:
+      - dev
+
+  frontend-prod:
+    build:
+      context: ../../frontend/pricing-dashboard
+      dockerfile: Dockerfile
+      target: production
+    ports:
+      - "3000:80"
+    environment:
+      - NODE_ENV=production
+    networks:
+      - default
+    profiles:
+      - prod
+
 volumes:
   db_data:
+  redis_data:
 
