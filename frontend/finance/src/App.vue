@@ -1,7 +1,3 @@
-<script setup lang="ts">
-import LoginPage from './components/LoginPage.vue'
-</script>
-
 <template>
   <div class="min-h-screen relative overflow-hidden">
     <!-- Global Animated Financial Background -->
@@ -96,7 +92,7 @@ import LoginPage from './components/LoginPage.vue'
 
     <!-- Content -->
     <div class="relative z-10">
-      <LoginPage />
+      <router-view />
     </div>
   </div>
 </template>

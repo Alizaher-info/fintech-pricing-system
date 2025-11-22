@@ -1,0 +1,10 @@
+# Cleanup old security events daily at 2:00 AM
+# Retention: 365 days (1 year)
+# Logs: /var/log/cron.log
+
+0 2 * * * cd /var/www/html && php bin/console app:cleanup-security-events >> /var/log/cron.log 2>&1
+
+# Alternative schedules (commented out):
+# 0 3 * * 0    = Weekly on Sunday at 3:00 AM
+# 0 1 1 * *    = Monthly on 1st day at 1:00 AM
+# */5 * * * *  = Every 5 minutes (for testing only)
