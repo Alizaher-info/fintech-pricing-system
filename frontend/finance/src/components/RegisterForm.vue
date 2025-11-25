@@ -123,8 +123,9 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { api } from '../services/api';
+import { RegisterService } from '../services/RegisterService';
 
+const registerService = RegisterService.getInstance();
 const emit = defineEmits(['register-success', 'switch-to-login']);
 
 const firstName = ref('');
@@ -141,20 +142,22 @@ const handleRegister = async () => {
   success.value = false;
 
   try {
-    await api.register({
+    // RegisterService - email registration only
+    await registerService.register({
       email: email.value,
       password: password.value,
       firstName: firstName.value,
       lastName: lastName.value,
     });
 
+    // Token already saved by RegisterService (auto-login)
     success.value = true;
-    // Token is already saved by api.register, redirect after a short delay
+    // Redirect after a short delay
     setTimeout(() => {
       emit('register-success');
     }, 1000);
   } catch (err: any) {
-    error.value = err.error || 'Registration failed';
+    error.value = err.message || err.error || 'Registration failed';
   } finally {
     loading.value = false;
   }

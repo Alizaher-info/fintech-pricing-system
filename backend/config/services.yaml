@@ -4,14 +4,14 @@ services:
     autowire: true
     autoconfigure: true
 
-  # App-Code 
+  # App-Code
   App\:
     resource: '../src/'
     exclude:
       - '../src/Kernel.php'
       - '../src/Entity/'
       - '../src/Grpc/'
-      - '../src/Client/' 
+      - '../src/Client/'
 
   # Redis client for rate limiting
   redis.rate_limiter:
@@ -25,4 +25,15 @@ services:
       $rateLimiterCache: '@cache.rate_limiter'
       $redisClient: '@redis.rate_limiter'
 
+  # Google OAuth service (lightweight - no heavy dependencies)
+  App\Service\GoogleOAuthService:
+    arguments:
+      $httpClient: '@http_client'
+      $googleClientId: '%env(GOOGLE_CLIENT_ID)%'
+      $googleClientSecret: '%env(GOOGLE_CLIENT_SECRET)%'
+
+  # Token blacklist service for secure logout
+  App\Service\Auth\TokenBlacklistService:
+    arguments:
+      $redis: '@redis.rate_limiter'
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Security;
 
+use App\Service\Auth\TokenBlacklistService;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Symfony\Component\HttpFoundation\Request;
@@ -13,11 +14,13 @@ class JWTAuthenticator
 {
     private string $secretKey;
     private string $issuer;
+    private TokenBlacklistService $blacklistService;
 
-    public function __construct()
+    public function __construct(TokenBlacklistService $blacklistService)
     {
         $this->secretKey = $_ENV['JWT_SECRET'] ?? 'your-secret-key';
         $this->issuer = $_ENV['JWT_ISSUER'] ?? 'fintech-api';
+        $this->blacklistService = $blacklistService;
     }
 
     public function authenticate(Request $request): ?array
@@ -31,8 +34,18 @@ class JWTAuthenticator
         $token = substr($authHeader, 7); // Remove "Bearer "
 
         try {
+            // Check if token is blacklisted
+            if ($this->blacklistService->isBlacklisted($token)) {
+                throw new UnauthorizedHttpException('Bearer', 'Token has been revoked');
+            }
+
             // Firebase JWT decode
             $decoded = JWT::decode($token, new Key($this->secretKey, 'HS256'));
+
+            // Check if user has been logged out from all devices
+            if ($this->blacklistService->isUserBlacklisted($decoded->user_id, $decoded->iat)) {
+                throw new UnauthorizedHttpException('Bearer', 'Token has been revoked');
+            }
 
             return [
                 'user_id' => $decoded->user_id,
@@ -81,5 +94,19 @@ class JWTAuthenticator
         ];
 
         return JWT::encode($payload, $this->secretKey, 'HS256');
+    }
+
+    /**
+     * Extract token string from request
+     */
+    public function extractToken(Request $request): ?string
+    {
+        $authHeader = $request->headers->get('Authorization');
+
+        if (!$authHeader || !str_starts_with($authHeader, 'Bearer ')) {
+            return null;
+        }
+
+        return substr($authHeader, 7); // Remove "Bearer "
     }
 }

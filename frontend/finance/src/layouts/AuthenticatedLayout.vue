@@ -2,11 +2,14 @@
 import { ref, onMounted, provide } from 'vue';
 import { useRouter } from 'vue-router';
 import DashboardLayout from '../components/layout/DashboardLayout.vue';
-import { api } from '../services/api';
+import { LoginService } from '../services/LoginService';
+import { LogoutService } from '../services/LogoutService';
 
 const router = useRouter();
 const user = ref<any>(null);
 const loading = ref(true);
+const loginService = LoginService.getInstance();
+const logoutService = LogoutService.getInstance();
 
 // Provide user to all child components
 provide('user', user);
@@ -27,23 +30,47 @@ onMounted(async () => {
 
   // Validate token if no temp user data
   try {
-    const response = await api.validateToken();
-    if (response.success) {
-      user.value = response.user;
-    } else {
+    const isValid = await loginService.validateSession();
+    if (!isValid) {
       router.push('/login');
+      return;
+    }
+    
+    // Token is valid, decode it to get user data
+    const token = loginService.getToken();
+    if (token) {
+      try {
+        // Decode JWT to extract user info (format: header.payload.signature)
+        const payloadBase64 = token.split('.')[1];
+        const payload = JSON.parse(atob(payloadBase64));
+        
+        user.value = {
+          id: payload.user_id,
+          email: payload.email,
+          role: payload.role
+        };
+      } catch (decodeError) {
+        console.error('Failed to decode token:', decodeError);
+        router.push('/login');
+        return;
+      }
     }
   } catch (error) {
-    api.clearToken();
+    console.error('Validation failed:', error);
     router.push('/login');
   } finally {
     loading.value = false;
   }
 });
 
-const handleLogout = () => {
-  api.clearToken();
-  router.push('/login');
+const handleLogout = async () => {
+  try {
+    await logoutService.logoutCurrentDevice();
+    router.push('/login');
+  } catch (error) {
+    console.error('Logout failed:', error);
+    router.push('/login');
+  }
 };
 </script>
 

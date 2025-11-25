@@ -14,7 +14,7 @@ export default defineConfig({
     },
     proxy: {
       '/api': {
-        target: 'http://nginx',  // ← Direct container-to-container communication
+        target: 'http://nginx',
         changeOrigin: true,
         secure: false,
       }

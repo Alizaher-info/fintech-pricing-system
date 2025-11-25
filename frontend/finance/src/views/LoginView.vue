@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import LoginForm from '../components/LoginForm.vue';
 
 const router = useRouter();
-const showRegister = ref(false);
 
 const handleLoginSuccess = (userData: any) => {
   // Store user data temporarily to avoid re-validation
