@@ -42,6 +42,33 @@ services:
       dockerfile: services/pricing-api/Dockerfile
     ports:
       - "50051:50051"  # gRPC Port
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: trading_platform
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      DATABASE_URL: postgres://app:app@postgres:5432/trading_platform?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: trading-postgres
+    environment:
+      POSTGRES_DB: trading_platform
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d trading_platform"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
@@ -87,5 +114,6 @@ services:
 volumes:
   db_data:
   redis_data:
+  postgres_data:
   cron_logs:
 

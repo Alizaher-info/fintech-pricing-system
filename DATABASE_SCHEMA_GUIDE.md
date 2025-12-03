@@ -1,9 +1,38 @@
 # Trading Platform Database Schema Guide
 
 **Date:** November 22, 2025  
+**Updated:** December 3, 2025  
 **Project:** Fintech Pricing System - Trading Platform  
 **Database:** PostgreSQL  
 **Purpose:** Complete reference for all 6 database tables
+
+---
+
+## Important: Multi-Database Architecture
+
+This system uses **TWO separate databases**:
+
+### MySQL Database (Symfony Backend)
+- **Purpose:** Authentication & User Management
+- **Tables:** users, refresh_tokens, security_events, portfolios
+- **Managed by:** Symfony + Doctrine ORM
+- **Location:** Backend service
+
+### PostgreSQL Database (Go Pricing Service)
+- **Purpose:** Trading & Market Data
+- **Tables:** assets, price_quotes, price_history, order_book, watchlist, price_alerts
+- **Managed by:** Go service
+- **Location:** Services/pricing-api
+
+### User ID Synchronization
+The PostgreSQL tables (`order_book`, `watchlist`, `price_alerts`) store `user_id` as **INTEGER only** (no foreign key to a users table). The actual user data lives in MySQL. When a user places an order:
+
+1. User authenticates with Symfony (validates against MySQL)
+2. Symfony extracts `user_id` from JWT token
+3. Symfony sends `user_id` to Go service via gRPC
+4. Go service stores `user_id` in PostgreSQL tables
+
+**No data duplication** - user information stays in MySQL, trading data stays in PostgreSQL.
 
 ---
 

@@ -15,6 +15,7 @@ vendor/
 
 # Symfony specific
 backend/var/
+backend/.env
 backend/.env.local
 backend/.env.local.php
 backend/.env.*.local
@@ -62,6 +63,8 @@ Thumbs.db
 .env.local
 .env.production.local
 .env.development.local
+services/.env
+services/.env.docker
 
 # Database
 *.sqlite
