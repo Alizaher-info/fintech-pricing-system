@@ -27,7 +27,7 @@ RUN mkdir -p pricing-api/gen/pricing/v1 && \
 
 # Binary aus dem pricing-api Unterverzeichnis erstellen
 WORKDIR /app/pricing-api
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o pricing-api
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o pricing-api ./cmd/server
 
 # Runtime
 FROM gcr.io/distroless/static:debug-nonroot
