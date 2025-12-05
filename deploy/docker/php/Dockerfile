@@ -2,8 +2,8 @@
 FROM php:8.2-fpm-alpine as base
 
 # Install system packages (cached unless Dockerfile changes)
-# hadolint ignore=DL3018
-RUN apk add --no-cache "$PHPIZE_DEPS" linux-headers git curl unzip dcron busybox-suid
+# hadolint ignore=DL3018,SC2086
+RUN apk add --no-cache $PHPIZE_DEPS linux-headers git curl unzip dcron busybox-suid
 
 # Install PHP extension installer (cached unless Dockerfile changes)
 COPY --from=mlocati/php-extension-installer:2 /usr/bin/install-php-extensions /usr/local/bin/
