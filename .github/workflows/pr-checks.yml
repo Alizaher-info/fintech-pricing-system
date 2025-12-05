@@ -146,15 +146,28 @@ jobs:
 
     - name: Test Docker image
       run: |
-        # Test if binary exists and shows help/version info (with timeout)
-        timeout 10s docker run --rm test-${{ matrix.service }}:latest --help || echo "Binary works (timeout expected for server)"
-
-        # Quick smoke test - start server and check if it starts properly
-        docker run --rm -d --name test-server-${{ matrix.service }} test-${{ matrix.service }}:latest
+        SERVICE="${{ matrix.service }}"
+        
+        # Different tests for different service types
+        if [[ "$SERVICE" == "pricing-api" ]] || [[ "$SERVICE" == "pricing-fetcher" ]]; then
+          # Go services - test binary help
+          timeout 10s docker run --rm test-$SERVICE:latest --help || echo "✅ Binary works (timeout expected for server)"
+        elif [[ "$SERVICE" == "frontend" ]]; then
+          # Frontend - test nginx config
+          docker run --rm test-$SERVICE:latest nginx -t
+          echo "✅ Frontend nginx config is valid"
+        elif [[ "$SERVICE" == "backend" ]]; then
+          # Backend - test PHP-FPM config
+          docker run --rm test-$SERVICE:latest php-fpm -t
+          echo "✅ Backend PHP-FPM config is valid"
+        fi
+        
+        # Quick smoke test - start server and check if it runs
+        docker run --rm -d --name test-server-$SERVICE test-$SERVICE:latest
         sleep 3
-        docker logs test-server-${{ matrix.service }}
-        docker ps | grep test-server-${{ matrix.service }} && echo "✅ Server started correctly"
-        docker stop test-server-${{ matrix.service }} || true
+        docker logs test-server-$SERVICE
+        docker ps | grep test-server-$SERVICE && echo "✅ Server started correctly"
+        docker stop test-server-$SERVICE || true
 
   documentation:
     runs-on: ubuntu-latest
