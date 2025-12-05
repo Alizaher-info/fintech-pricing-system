@@ -153,8 +153,8 @@ jobs:
           # Go services - test binary help
           timeout 10s docker run --rm test-$SERVICE:latest --help || echo "✅ Binary works (timeout expected for server)"
         elif [[ "$SERVICE" == "frontend" ]]; then
-          # Frontend - test nginx config
-          docker run --rm test-$SERVICE:latest nginx -t
+          # Frontend - test nginx config (with dummy upstream hosts)
+          docker run --rm --add-host=nginx:127.0.0.1 test-$SERVICE:latest nginx -t
           echo "✅ Frontend nginx config is valid"
         elif [[ "$SERVICE" == "backend" ]]; then
           # Backend - test PHP-FPM config
@@ -163,7 +163,11 @@ jobs:
         fi
         
         # Quick smoke test - start server and check if it runs
-        docker run --rm -d --name test-server-$SERVICE test-$SERVICE:latest
+        if [[ "$SERVICE" == "frontend" ]]; then
+          docker run --rm -d --name test-server-$SERVICE --add-host=nginx:127.0.0.1 test-$SERVICE:latest
+        else
+          docker run --rm -d --name test-server-$SERVICE test-$SERVICE:latest
+        fi
         sleep 3
         docker logs test-server-$SERVICE
         docker ps | grep test-server-$SERVICE && echo "✅ Server started correctly"
