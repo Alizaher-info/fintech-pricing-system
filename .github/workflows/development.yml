@@ -19,10 +19,25 @@ jobs:
         cd deploy/compose
         docker compose config
         
-    - name: Lint Dockerfile
+    - name: Lint Dockerfiles
       uses: hadolint/hadolint-action@v3.1.0
       with:
         dockerfile: services/pricing-api/Dockerfile
+        
+    - name: Lint pricing-fetcher Dockerfile
+      uses: hadolint/hadolint-action@v3.1.0
+      with:
+        dockerfile: services/pricing-fetcher/Dockerfile
+        
+    - name: Lint backend Dockerfile
+      uses: hadolint/hadolint-action@v3.1.0
+      with:
+        dockerfile: deploy/docker/php/Dockerfile
+        
+    - name: Lint frontend Dockerfile
+      uses: hadolint/hadolint-action@v3.1.0
+      with:
+        dockerfile: frontend/finance/Dockerfile
         
   performance-test:
     runs-on: ubuntu-latest
@@ -44,7 +59,7 @@ jobs:
         for i in {1..100}; do
           curl -s http://localhost:8080/quote-test > /dev/null
         done
-        echo "Performance test completed"
+        echo "Performance test completed successfully"
         
     - name: Cleanup
       if: always()

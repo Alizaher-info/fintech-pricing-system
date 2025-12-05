@@ -33,12 +33,17 @@ jobs:
         
     - name: Health check
       run: |
-        # Test if pricing API is responding (simplified)
+        # Test if pricing API is responding
         cd deploy/compose
         docker compose ps
         
-        # Test HTTP endpoint
-        curl --retry 5 --retry-delay 3 --retry-connrefused http://localhost:8080/quote-test
+        # Test HTTP endpoint with retries
+        curl --retry 5 --retry-delay 3 --retry-connrefused http://localhost:8080/quote-test || {
+          echo "Health check failed - checking logs:"
+          docker compose logs
+          exit 1
+        }
+        echo "✅ Health check passed successfully"
         
     - name: Run tests
       run: |
@@ -63,9 +68,15 @@ jobs:
           - service: pricing-api
             dockerfile: ./services/pricing-api/Dockerfile
             context: .
+          - service: pricing-fetcher
+            dockerfile: ./services/pricing-fetcher/Dockerfile
+            context: .
           - service: backend
             dockerfile: ./deploy/docker/php/Dockerfile
             context: ./backend
+          - service: frontend
+            dockerfile: ./frontend/finance/Dockerfile
+            context: ./frontend/finance
     
     steps:
     - name: Checkout code
