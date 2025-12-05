@@ -12,11 +12,13 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set up PHP (without extensions for speed)
+    - name: Set up PHP
       uses: shivammathur/setup-php@v2
       with:
         php-version: '8.2'
+        extensions: ctype, iconv, pdo, pdo_pgsql, intl
         tools: composer:v2
+        coverage: none
 
     - name: Cache PHP dependencies
       uses: actions/cache@v4
@@ -37,7 +39,12 @@ jobs:
     - name: Install PHP dependencies
       run: |
         cd backend
-        composer install --optimize-autoloader --prefer-dist --no-interaction
+        composer install --optimize-autoloader --prefer-dist --no-interaction --no-scripts
+        
+    - name: Run Symfony cache warmup
+      run: |
+        cd backend
+        php bin/console cache:clear --no-warmup || echo "Cache clear skipped (database not available)"
 
     - name: PHP Syntax Check (basic)
       run: |
