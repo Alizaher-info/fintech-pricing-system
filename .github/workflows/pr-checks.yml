@@ -37,7 +37,7 @@ jobs:
     - name: Install PHP dependencies
       run: |
         cd backend
-        composer install --no-dev --optimize-autoloader --prefer-dist
+        composer install --optimize-autoloader --prefer-dist --no-interaction
 
     - name: PHP Syntax Check (basic)
       run: |
