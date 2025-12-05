@@ -2,7 +2,8 @@
 FROM php:8.2-fpm-alpine as base
 
 # Install system packages (cached unless Dockerfile changes)
-RUN apk add --no-cache $PHPIZE_DEPS linux-headers git curl unzip dcron busybox-suid
+# hadolint ignore=DL3018
+RUN apk add --no-cache "$PHPIZE_DEPS" linux-headers git curl unzip dcron busybox-suid
 
 # Install PHP extension installer (cached unless Dockerfile changes)
 COPY --from=mlocati/php-extension-installer:2 /usr/bin/install-php-extensions /usr/local/bin/
@@ -35,10 +36,8 @@ COPY cron/cleanup-security-events /etc/crontabs/www-data
 RUN chmod 0644 /etc/crontabs/www-data && \
     mkdir -p /var/log && \
     touch /var/log/cron.log && \
-    chown www-data:www-data /var/log/cron.log
-
-# Create startup script to run both PHP-FPM and cron
-RUN echo '#!/bin/sh' > /usr/local/bin/docker-entrypoint.sh && \
+    chown www-data:www-data /var/log/cron.log && \
+    echo '#!/bin/sh' > /usr/local/bin/docker-entrypoint.sh && \
     echo 'crond -l 2 -f &' >> /usr/local/bin/docker-entrypoint.sh && \
     echo 'php-fpm' >> /usr/local/bin/docker-entrypoint.sh && \
     chmod +x /usr/local/bin/docker-entrypoint.sh
