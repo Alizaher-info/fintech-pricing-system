@@ -2,13 +2,22 @@
 FROM php:8.2-fpm-alpine as base
 
 # Install system packages (cached unless Dockerfile changes)
-RUN apk add --no-cache $PHPIZE_DEPS linux-headers git curl unzip dcron busybox-suid
+# hadolint ignore=DL3018,SC2086
+RUN apk add --no-cache $PHPIZE_DEPS linux-headers git curl unzip dcron busybox-suid protobuf protobuf-dev
 
 # Install PHP extension installer (cached unless Dockerfile changes)
 COPY --from=mlocati/php-extension-installer:2 /usr/bin/install-php-extensions /usr/local/bin/
 
-# Install PHP extensions (cached unless Dockerfile changes) 
-RUN install-php-extensions grpc pdo_mysql intl zip opcache xdebug
+# Install PHP extensions in optimal order (cached unless Dockerfile changes)
+# Install fast extensions first, then slow ones (better caching)
+RUN install-php-extensions pdo_mysql intl zip opcache
+
+# Install gRPC last (slowest, best to cache this layer)
+# Set IPE_DONT_ENABLE=1 to skip immediate loading during build
+RUN IPE_DONT_ENABLE=1 install-php-extensions grpc && docker-php-ext-enable grpc
+
+# Install xdebug separately (only for development)
+RUN install-php-extensions xdebug
 
 # Copy Xdebug configuration
 COPY xdebug.ini /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
@@ -25,20 +34,17 @@ WORKDIR /var/www/html
 COPY composer.json composer.lock ./
 
 # Create src/Grpc/GPBMetadata directory to prevent autoload scan errors
-RUN mkdir -p src/Grpc/GPBMetadata
-
-# Install dependencies (only runs when composer files change)
-RUN composer install --optimize-autoloader --no-scripts --no-cache
+# Install dependencies and setup cron (only runs when composer files change)
+RUN mkdir -p src/Grpc/GPBMetadata && \
+    composer install --optimize-autoloader --no-scripts --no-cache
 
 # Setup cron for scheduled tasks
 COPY cron/cleanup-security-events /etc/crontabs/www-data
 RUN chmod 0644 /etc/crontabs/www-data && \
     mkdir -p /var/log && \
     touch /var/log/cron.log && \
-    chown www-data:www-data /var/log/cron.log
-
-# Create startup script to run both PHP-FPM and cron
-RUN echo '#!/bin/sh' > /usr/local/bin/docker-entrypoint.sh && \
+    chown www-data:www-data /var/log/cron.log && \
+    echo '#!/bin/sh' > /usr/local/bin/docker-entrypoint.sh && \
     echo 'crond -l 2 -f &' >> /usr/local/bin/docker-entrypoint.sh && \
     echo 'php-fpm' >> /usr/local/bin/docker-entrypoint.sh && \
     chmod +x /usr/local/bin/docker-entrypoint.sh

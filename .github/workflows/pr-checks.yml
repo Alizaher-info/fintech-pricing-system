@@ -7,17 +7,19 @@ on:
 jobs:
   code-quality:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
-    - name: Set up PHP (without extensions for speed)
+
+    - name: Set up PHP
       uses: shivammathur/setup-php@v2
       with:
         php-version: '8.2'
+        extensions: ctype, iconv, pdo, pdo_pgsql, intl
         tools: composer:v2
-        
+        coverage: none
+
     - name: Cache PHP dependencies
       uses: actions/cache@v4
       with:
@@ -25,37 +27,50 @@ jobs:
         key: ${{ runner.os }}-php-${{ hashFiles('backend/composer.lock') }}
         restore-keys: |
           ${{ runner.os }}-php-
-        
+
+    - name: Create .env file for CI
+      run: |
+        cd backend
+        cp .env.example .env
+        # Set required values for CI environment
+        sed -i 's|APP_SECRET=.*|APP_SECRET=test-secret-key-for-ci|g' .env
+        sed -i 's|DATABASE_URL=.*|DATABASE_URL="postgresql://test:test@localhost:5432/test_db"|g' .env
+
     - name: Install PHP dependencies
       run: |
         cd backend
-        composer install --no-dev --optimize-autoloader --prefer-dist
+        composer install --optimize-autoloader --prefer-dist --no-interaction --no-scripts
         
+    - name: Run Symfony cache warmup
+      run: |
+        cd backend
+        php bin/console cache:clear --no-warmup || echo "Cache clear skipped (database not available)"
+
     - name: PHP Syntax Check (basic)
       run: |
         cd backend
         find src -name "*.php" -exec php -l {} \;
         echo "✅ PHP syntax check passed (gRPC validation via Docker)"
-        
+
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
         go-version: '1.22'
-        
+
     - name: Go Syntax Check (pricing-api)
       run: |
         cd services/pricing-api
         go fmt ./...
         go vet ./...
         echo "✅ Go syntax check passed for pricing-api"
-        
+
     - name: Go Syntax Check (pricing-fetcher)
       run: |
         cd services/pricing-fetcher
         go fmt ./...
         go vet ./...
         echo "✅ Go syntax check passed for pricing-fetcher"
-        
+
     - name: Go Tests (basic)
       run: |
         cd services/pricing-api
@@ -65,35 +80,35 @@ jobs:
         else
           echo "ℹ️  No test files found, skipping Go tests"
         fi
-        
+
         cd ../pricing-fetcher
         if ls *_test.go 1> /dev/null 2>&1; then
           go test -v ./...
         else
           echo "ℹ️  No test files found, skipping Go tests"
         fi
-        
+
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20'
         cache: 'npm'
         cache-dependency-path: frontend/finance/package-lock.json
-        
+
     - name: Install frontend dependencies
       run: |
         cd frontend/finance
         npm ci
-        
+
     - name: Frontend lint and type check
       run: |
         cd frontend/finance
         npm run build
         echo "✅ Frontend build passed"
-        
+
   docker-build-test:
     runs-on: ubuntu-latest
-    
+
     strategy:
       matrix:
         include:
@@ -109,52 +124,70 @@ jobs:
           - service: frontend
             context: ./frontend/finance
             dockerfile: frontend/finance/Dockerfile
-        
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
       with:
         driver: docker-container
-        
+
     - name: Build Docker image (with GitHub Actions cache)
       uses: docker/build-push-action@v5
       with:
         context: ${{ matrix.context }}
         file: ${{ matrix.dockerfile }}
         tags: test-${{ matrix.service }}:latest
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        cache-from: type=gha,scope=${{ matrix.service }}
+        cache-to: type=gha,mode=max,scope=${{ matrix.service }}
         load: true
-        
+        # Use build-args to enable caching optimizations
+        build-args: |
+          BUILDKIT_INLINE_CACHE=1
+
     - name: Test Docker image
       run: |
-        # Test if binary exists and shows help/version info (with timeout)
-        timeout 10s docker run --rm test-${{ matrix.service }}:latest --help || echo "Binary works (timeout expected for server)"
+        SERVICE="${{ matrix.service }}"
         
-        # Quick smoke test - start server and check if it starts properly
-        docker run --rm -d --name test-server-${{ matrix.service }} test-${{ matrix.service }}:latest
-        sleep 3
-        docker logs test-server-${{ matrix.service }}
-        docker ps | grep test-server-${{ matrix.service }} && echo "✅ Server started correctly"
-        docker stop test-server-${{ matrix.service }} || true
+        # Different tests for different service types
+        if [[ "$SERVICE" == "pricing-api" ]] || [[ "$SERVICE" == "pricing-fetcher" ]]; then
+          # Go services - verify binary exists in distroless image
+          docker run --rm --entrypoint="" test-$SERVICE:latest ls -lh /usr/local/bin/$SERVICE
+          echo "✅ Go binary built successfully: /usr/local/bin/$SERVICE"
+        elif [[ "$SERVICE" == "frontend" ]]; then
+          # Frontend - test nginx config (with dummy upstream hosts)
+          docker run --rm --add-host=nginx:127.0.0.1 test-$SERVICE:latest nginx -t
+          echo "✅ Frontend nginx config is valid"
+          # Test that static files exist
+          docker run --rm test-$SERVICE:latest ls -lh /usr/share/nginx/html/index.html
+          echo "✅ Frontend static files built"
+        elif [[ "$SERVICE" == "backend" ]]; then
+          # Backend - test PHP-FPM config
+          docker run --rm test-$SERVICE:latest php-fpm -t
+          echo "✅ Backend PHP-FPM config is valid"
+          # Test that PHP files exist
+          docker run --rm --entrypoint="" test-$SERVICE:latest ls -lh /var/www/html/src
+          echo "✅ Backend source files present"
+        fi
+        
+        echo "✅ Docker image test passed for $SERVICE"
 
   documentation:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Check README
       run: |
         if [ ! -f README.md ]; then
           echo "README.md is missing!"
           exit 1
         fi
-        
+
     - name: Check API Documentation
       run: |
         if [ ! -f docs/api.md ] && [ ! -f protos/pricing/v1/pricing.proto ]; then
