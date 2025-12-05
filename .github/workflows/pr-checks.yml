@@ -150,9 +150,9 @@ jobs:
         
         # Different tests for different service types
         if [[ "$SERVICE" == "pricing-api" ]] || [[ "$SERVICE" == "pricing-fetcher" ]]; then
-          # Go services - just verify binary exists and compiles
-          docker run --rm --entrypoint="" test-$SERVICE:latest ls -lh /app/$SERVICE
-          echo "✅ Go binary built successfully"
+          # Go services - verify binary exists in distroless image
+          docker run --rm --entrypoint="" test-$SERVICE:latest ls -lh /usr/local/bin/$SERVICE
+          echo "✅ Go binary built successfully: /usr/local/bin/$SERVICE"
         elif [[ "$SERVICE" == "frontend" ]]; then
           # Frontend - test nginx config (with dummy upstream hosts)
           docker run --rm --add-host=nginx:127.0.0.1 test-$SERVICE:latest nginx -t
