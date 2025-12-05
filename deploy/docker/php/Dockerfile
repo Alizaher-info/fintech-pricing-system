@@ -26,10 +26,9 @@ WORKDIR /var/www/html
 COPY composer.json composer.lock ./
 
 # Create src/Grpc/GPBMetadata directory to prevent autoload scan errors
-RUN mkdir -p src/Grpc/GPBMetadata
-
-# Install dependencies (only runs when composer files change)
-RUN composer install --optimize-autoloader --no-scripts --no-cache
+# Install dependencies and setup cron (only runs when composer files change)
+RUN mkdir -p src/Grpc/GPBMetadata && \
+    composer install --optimize-autoloader --no-scripts --no-cache
 
 # Setup cron for scheduled tasks
 COPY cron/cleanup-security-events /etc/crontabs/www-data
