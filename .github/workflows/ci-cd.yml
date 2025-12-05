@@ -14,22 +14,46 @@ jobs:
   test:
     runs-on: ubuntu-latest
     
+    # Skip full integration tests on PR, only run on main branch
+    if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'run-integration-tests')
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
+      with:
+        driver-opts: |
+          image=moby/buildkit:latest
+          network=host
 
-    - name: Start services
+    - name: Cache Docker layers
+      uses: actions/cache@v4
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ runner.os }}-buildx-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-buildx-
+
+    - name: Start services (with cache)
       run: |
         cd deploy/compose
-        docker compose up -d --build
+        # Use build cache to speed up builds
+        DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose build --parallel
+        docker compose up -d
         
-    - name: Wait for services
+    - name: Wait for services (with health check)
       run: |
         echo "Waiting for services to be ready..."
-        sleep 30
+        cd deploy/compose
+        
+        # Wait for postgres health check
+        timeout 60 bash -c 'until docker compose exec -T postgres pg_isready; do sleep 2; done'
+        echo "✅ PostgreSQL is ready"
+        
+        # Wait for other services
+        sleep 15
         
     - name: Health check
       run: |
