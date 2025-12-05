@@ -3,13 +3,21 @@ FROM php:8.2-fpm-alpine as base
 
 # Install system packages (cached unless Dockerfile changes)
 # hadolint ignore=DL3018,SC2086
-RUN apk add --no-cache $PHPIZE_DEPS linux-headers git curl unzip dcron busybox-suid
+RUN apk add --no-cache $PHPIZE_DEPS linux-headers git curl unzip dcron busybox-suid protobuf protobuf-dev
 
 # Install PHP extension installer (cached unless Dockerfile changes)
 COPY --from=mlocati/php-extension-installer:2 /usr/bin/install-php-extensions /usr/local/bin/
 
-# Install PHP extensions (cached unless Dockerfile changes) 
-RUN install-php-extensions grpc pdo_mysql intl zip opcache xdebug
+# Install PHP extensions in optimal order (cached unless Dockerfile changes)
+# Install fast extensions first, then slow ones (better caching)
+RUN install-php-extensions pdo_mysql intl zip opcache
+
+# Install gRPC last (slowest, best to cache this layer)
+# Set IPE_DONT_ENABLE=1 to skip immediate loading during build
+RUN IPE_DONT_ENABLE=1 install-php-extensions grpc && docker-php-ext-enable grpc
+
+# Install xdebug separately (only for development)
+RUN install-php-extensions xdebug
 
 # Copy Xdebug configuration
 COPY xdebug.ini /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
