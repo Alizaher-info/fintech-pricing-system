@@ -5,8 +5,8 @@ WORKDIR /app
 # Copy the entire services module (for shared dependencies if needed in future)
 COPY services/ .
 
-# Download Go modules
-RUN go mod download
+# Download Go modules and update go.sum
+RUN go mod download && go mod tidy
 
 # Build the pricing-fetcher binary
 WORKDIR /app/pricing-fetcher

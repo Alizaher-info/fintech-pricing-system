@@ -1,9 +1,11 @@
 package fetcher
 
 import (
+	"context"
 	"fmt"
 	"time"
 
+	"services/pricing-fetcher/internal/kafka"
 	"services/pricing-fetcher/internal/models"
 	"services/pricing-fetcher/internal/repository"
 	"services/pricing-fetcher/pkg/logger"
@@ -12,12 +14,16 @@ import (
 type PriceFetcher struct {
 	coinGeckoClient *CoinGeckoClient
 	priceRepo       *repository.PriceRepository
+	kafkaManager    *kafka.ProducerManager
+	topicName       string
 }
 
-func NewPriceFetcher(priceRepo *repository.PriceRepository) *PriceFetcher {
+func NewPriceFetcher(priceRepo *repository.PriceRepository, kafkaManager *kafka.ProducerManager, topicName string) *PriceFetcher {
 	return &PriceFetcher{
 		coinGeckoClient: NewCoinGeckoClient(),
 		priceRepo:       priceRepo,
+		kafkaManager:    kafkaManager,
+		topicName:       topicName,
 	}
 }
 
@@ -76,6 +82,26 @@ func (pf *PriceFetcher) FetchAndSaveAll() error {
 		if err := pf.priceRepo.UpsertPrice(price); err != nil {
 			logger.Error(fmt.Sprintf("Failed to save price for %s: %v", priceData.Symbol, err))
 			continue
+		}
+
+		// Publish to Kafka after successful database save
+		if pf.kafkaManager != nil {
+			kafkaMsg := kafka.PriceUpdateMessage{
+				Symbol:    priceData.Symbol,
+				Price:     priceData.CurrentPrice,
+				Change24h: priceData.Change24h,
+				Volume24h: priceData.Volume,
+				High24h:   priceData.High24h,
+				Low24h:    priceData.Low24h,
+				MarketCap: priceData.MarketCap,
+				Timestamp: time.Now(),
+			}
+			
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			if err := pf.kafkaManager.PublishPriceUpdate(ctx, pf.topicName, kafkaMsg); err != nil {
+				logger.Error(fmt.Sprintf("Failed to publish to Kafka for %s: %v", priceData.Symbol, err))
+			}
+			cancel()
 		}
 
 		logger.Info(fmt.Sprintf("✓ %s: $%.2f | 24h: %.2f%% | Vol: $%.0f",
