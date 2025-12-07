@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"services/pricing-fetcher/internal/config"
 	"services/pricing-fetcher/internal/database"
 	"services/pricing-fetcher/internal/fetcher"
+	"services/pricing-fetcher/internal/kafka"
 	"services/pricing-fetcher/internal/repository"
 	"services/pricing-fetcher/internal/worker"
 	"services/pricing-fetcher/pkg/logger"
@@ -36,9 +38,19 @@ func main() {
 	defer db.Close()
 	logger.Info("Connected to PostgreSQL: trading_platform")
 
+	// Initialize Kafka Producer Manager
+	brokers := strings.Split(cfg.KafkaBrokers, ",")
+	kafkaManager := kafka.NewProducerManager(brokers)
+	defer kafkaManager.CloseAll()
+	
+	logger.Info(fmt.Sprintf("Kafka topics configured:"))
+	logger.Info(fmt.Sprintf("  - Price Updates: %s", cfg.TopicPriceUpdates))
+	logger.Info(fmt.Sprintf("  - Order Created: %s", cfg.TopicOrderCreated))
+	logger.Info(fmt.Sprintf("  - Price Alerts: %s", cfg.TopicPriceAlerts))
+
 	// Initialize repository and fetcher
 	priceRepo := repository.NewPriceRepository(db)
-	priceFetcher := fetcher.NewPriceFetcher(priceRepo)
+	priceFetcher := fetcher.NewPriceFetcher(priceRepo, kafkaManager, cfg.TopicPriceUpdates)
 
 	// Verify assets in database
 	assets, err := priceRepo.GetAllAssets()
@@ -52,7 +64,7 @@ func main() {
 	priceWorker := worker.NewPriceWorker(priceFetcher, cfg.FetchInterval)
 	priceWorker.Start()
 
-	// Setup graceful shutdown
+	// Setup graceful shutdown to handle termination signals and stop the worker gracefully
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
