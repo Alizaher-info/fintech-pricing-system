@@ -12,18 +12,28 @@ import (
 )
 
 type PriceFetcher struct {
-	coinGeckoClient *CoinGeckoClient
-	priceRepo       *repository.PriceRepository
-	kafkaManager    *kafka.ProducerManager
-	topicName       string
+	coinGeckoClient  *CoinGeckoClient
+	assetRepo        *repository.AssetRepository
+	priceQuoteRepo   *repository.PriceQuoteRepository
+	priceHistoryRepo *repository.PriceHistoryRepository
+	kafkaManager     *kafka.ProducerManager
+	topicName        string
 }
 
-func NewPriceFetcher(priceRepo *repository.PriceRepository, kafkaManager *kafka.ProducerManager, topicName string) *PriceFetcher {
+func NewPriceFetcher(
+	assetRepo *repository.AssetRepository,
+	priceQuoteRepo *repository.PriceQuoteRepository,
+	priceHistoryRepo *repository.PriceHistoryRepository,
+	kafkaManager *kafka.ProducerManager,
+	topicName string,
+) *PriceFetcher {
 	return &PriceFetcher{
-		coinGeckoClient: NewCoinGeckoClient(),
-		priceRepo:       priceRepo,
-		kafkaManager:    kafkaManager,
-		topicName:       topicName,
+		coinGeckoClient:  NewCoinGeckoClient(),
+		assetRepo:        assetRepo,
+		priceQuoteRepo:   priceQuoteRepo,
+		priceHistoryRepo: priceHistoryRepo,
+		kafkaManager:     kafkaManager,
+		topicName:        topicName,
 	}
 }
 
@@ -32,7 +42,7 @@ func (pf *PriceFetcher) FetchAndSaveAll() error {
 	logger.Info("Starting price fetch cycle...")
 
 	// Get all assets from database
-	assets, err := pf.priceRepo.GetAllAssets()
+	assets, err := pf.assetRepo.GetAllAssets()
 	if err != nil {
 		return fmt.Errorf("failed to get assets: %w", err)
 	}
@@ -79,9 +89,16 @@ func (pf *PriceFetcher) FetchAndSaveAll() error {
 			LastUpdated:  time.Now(),
 		}
 
-		if err := pf.priceRepo.UpsertPrice(price); err != nil {
-			logger.Error(fmt.Sprintf("Failed to save price for %s: %v", priceData.Symbol, err))
+		// Save to price_quotes table (current price)
+		if err := pf.priceQuoteRepo.UpsertPrice(price); err != nil {
+			logger.Error(fmt.Sprintf("Failed to save price quote for %s: %v", priceData.Symbol, err))
 			continue
+		}
+
+		// Save to price_history table (historical record)
+		if err := pf.priceHistoryRepo.InsertHistory(price); err != nil {
+			logger.Error(fmt.Sprintf("Failed to save price history for %s: %v", priceData.Symbol, err))
+			// Don't continue - we still want to publish to Kafka
 		}
 
 		// Publish to Kafka after successful database save
@@ -120,7 +137,7 @@ func (pf *PriceFetcher) FetchAndSaveAll() error {
 
 // FetchSingle fetches and saves price for a single asset
 func (pf *PriceFetcher) FetchSingle(symbol string) error {
-	asset, err := pf.priceRepo.GetAssetBySymbol(symbol)
+	asset, err := pf.assetRepo.GetAssetBySymbol(symbol)
 	if err != nil {
 		return fmt.Errorf("failed to get asset: %w", err)
 	}
@@ -148,8 +165,15 @@ func (pf *PriceFetcher) FetchSingle(symbol string) error {
 		LastUpdated:  time.Now(),
 	}
 
-	if err := pf.priceRepo.UpsertPrice(price); err != nil {
-		return fmt.Errorf("failed to save price: %w", err)
+	// Save to price_quotes table (current price)
+	if err := pf.priceQuoteRepo.UpsertPrice(price); err != nil {
+		return fmt.Errorf("failed to save price quote: %w", err)
+	}
+
+	// Save to price_history table (historical record)
+	if err := pf.priceHistoryRepo.InsertHistory(price); err != nil {
+		logger.Error(fmt.Sprintf("Failed to save price history: %v", err))
+		// Not a fatal error, continue
 	}
 
 	logger.Info(fmt.Sprintf("Updated %s: $%.2f", symbol, priceData.CurrentPrice))
