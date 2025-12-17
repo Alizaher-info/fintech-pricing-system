@@ -71,6 +71,13 @@ jobs:
         go vet ./...
         echo "✅ Go syntax check passed for pricing-fetcher"
 
+    - name: Go Syntax Check (market-trading)
+      run: |
+        cd services/market-trading
+        go fmt ./...
+        go vet ./...
+        echo "✅ Go syntax check passed for market-trading"
+
     - name: Go Tests (basic)
       run: |
         cd services/pricing-api
@@ -82,6 +89,13 @@ jobs:
         fi
 
         cd ../pricing-fetcher
+        if ls *_test.go 1> /dev/null 2>&1; then
+          go test -v ./...
+        else
+          echo "ℹ️  No test files found, skipping Go tests"
+        fi
+
+        cd ../market-trading
         if ls *_test.go 1> /dev/null 2>&1; then
           go test -v ./...
         else
