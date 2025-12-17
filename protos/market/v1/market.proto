@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package market.v1;
+
+option go_package = "services/market-trading/gen/market/v1;marketv1";
+option php_namespace = "Market\\V1";
+option php_metadata_namespace = "GPBMetadata\\Market\\V1";
+
+// PriceUpdate represents a real-time price update for an asset
+message PriceUpdate {
+  string symbol = 1;           // Asset symbol (e.g., "BTCUSDT", "ETHUSDT")
+  double price = 2;            // Current price
+  double bid_price = 3;        // Bid price
+  double ask_price = 4;        // Ask price
+  double volume_24h = 5;       // 24-hour trading volume
+  double change_24h = 6;       // 24-hour price change percentage
+  double high_24h = 7;         // 24-hour high price
+  double low_24h = 8;          // 24-hour low price
+  int64 timestamp = 9;         // Unix timestamp in milliseconds
+}
+
+// SubscribeRequest to subscribe to price updates for specific symbols
+message SubscribeRequest {
+  repeated string symbols = 1; // List of symbols to subscribe to (empty = all)
+}
+
+// GetPriceRequest to get current price for a specific symbol
+message GetPriceRequest {
+  string symbol = 1;           // Asset symbol
+}
+
+// GetPriceResponse returns the current price
+message GetPriceResponse {
+  PriceUpdate price = 1;       // Current price data
+  bool found = 2;              // Whether the price was found in cache
+}
+
+// MarketDataService provides real-time market data via streaming
+service MarketDataService {
+  // StreamPrices streams real-time price updates to clients
+  // This is a server-side streaming RPC
+  rpc StreamPrices(SubscribeRequest) returns (stream PriceUpdate);
+  
+  // GetPrice returns the current cached price for a symbol
+  // This is a unary RPC for quick lookups
+  rpc GetPrice(GetPriceRequest) returns (GetPriceResponse);
+}

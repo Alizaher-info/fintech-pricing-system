@@ -26,13 +26,13 @@ func NewProducerManager(brokers []string) *ProducerManager {
 }
 
 // GetProducer returns existing producer for topic or creates new one
-func (pm *ProducerManager) GetProducer(topic string) *Producer {
+func (pm *ProducerManager) GetProducer(topic string) (*Producer, error) {
 	pm.mu.RLock()
 	producer, exists := pm.producers[topic]
 	pm.mu.RUnlock()
 	
 	if exists {
-		return producer
+		return producer, nil
 	}
 	
 	// Create new producer for this topic
@@ -41,25 +41,32 @@ func (pm *ProducerManager) GetProducer(topic string) *Producer {
 	
 	// Double-check in case another goroutine created it
 	if producer, exists := pm.producers[topic]; exists {
-		return producer
+		return producer, nil
 	}
 	
-	producer = NewProducer(pm.brokers, topic)
+	producer, err := NewProducer(pm.brokers, topic)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create producer for topic %s: %w", topic, err)
+	}
+	
 	pm.producers[topic] = producer
 	
 	logger.Info(fmt.Sprintf("Created new Kafka producer for topic: %s", topic))
-	return producer
+	return producer, nil
 }
 
 // PublishPriceUpdate publishes a price update message to specified topic
 func (pm *ProducerManager) PublishPriceUpdate(ctx context.Context, topic string, msg PriceUpdateMessage) error {
-	producer := pm.GetProducer(topic)
+	producer, err := pm.GetProducer(topic)
+	if err != nil {
+		return err
+	}
 	return producer.PublishPriceUpdate(ctx, msg)
 }
 
 // PublishMessage publishes any message to specified topic (generic)
 func (pm *ProducerManager) PublishMessage(ctx context.Context, topic string, key string, value interface{}) error {
-	_ = pm.GetProducer(topic)  // Get producer but not used yet
+	_, _ = pm.GetProducer(topic)  // Get producer but not used yet
 	
 	// Use the producer's publish method
 	// For now, we'll use PublishPriceUpdate as base

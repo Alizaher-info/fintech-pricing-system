@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS price_quotes (
     change_24h DECIMAL(10, 4),
     high_24h DECIMAL(20, 8),
     low_24h DECIMAL(20, 8),
-    market_cap DECIMAL(30, 2), 
+    market_cap DECIMAL(30, 2), -- Market capitalization for stocks/crypto to assess size
     source VARCHAR(50),
     last_updated TIMESTAMP DEFAULT NOW(),
     

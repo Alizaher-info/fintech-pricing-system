@@ -19,12 +19,14 @@ services:
     environment:
       APP_ENV: dev
       PRICING_GRPC_TARGET: pricing-api:50051
+      MARKET_TRADING_GRPC_TARGET: market-trading:50052
     volumes:
       - ../../backend:/var/www/html
       - cron_logs:/var/log
     depends_on:
       - db
       - pricing-api
+      - market-trading
 
   nginx:
     image: nginx:stable
@@ -73,6 +75,31 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  market-trading:
+    build:
+      context: ../..
+      dockerfile: services/market-trading/Dockerfile
+    ports:
+      - "50052:50052"  # gRPC Port
+    environment:
+      GRPC_PORT: "50052"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ""
+      REDIS_DB: 0
+      REDIS_PRICE_TTL: 60
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_TOPIC: price-updates
+      KAFKA_GROUP_ID: market-trading-group
+      KAFKA_WORKER_COUNT: 10
+      LOG_LEVEL: info
+    depends_on:
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+
   postgres:
     image: postgres:16-alpine
     container_name: trading-postgres
@@ -97,6 +124,11 @@ services:
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
   # Kafka Services
   zookeeper:
