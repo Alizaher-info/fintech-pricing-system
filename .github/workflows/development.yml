@@ -29,6 +29,11 @@ jobs:
       with:
         dockerfile: services/pricing-fetcher/Dockerfile
         
+    - name: Lint market-trading Dockerfile
+      uses: hadolint/hadolint-action@v3.1.0
+      with:
+        dockerfile: services/market-trading/Dockerfile
+        
     - name: Lint backend Dockerfile
       uses: hadolint/hadolint-action@v3.1.0
       with:
