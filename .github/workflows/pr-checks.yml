@@ -56,6 +56,19 @@ jobs:
       uses: actions/setup-go@v4
       with:
         go-version: '1.23'
+        cache: false
+
+    - name: Verify market-trading go.sum
+      run: |
+        cd services/market-trading
+        echo "=== Checking go.sum exists ==="
+        ls -la go.sum
+        echo "=== IBM/sarama entries in go.sum ==="
+        grep "github.com/IBM/sarama v1.43.0" go.sum || echo "ERROR: IBM/sarama not found!"
+        echo "=== Running go mod verify ==="
+        go mod verify
+        echo "=== Running go mod download ==="
+        go mod download
 
     - name: Go Syntax Check (pricing-api)
       run: |
