@@ -1,0 +1,6 @@
+bin/
+gen/
+*.log
+.env
+.DS_Store
+market-trading

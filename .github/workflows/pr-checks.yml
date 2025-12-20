@@ -34,7 +34,6 @@ jobs:
         cp .env.example .env
         # Set required values for CI environment
         sed -i 's|APP_SECRET=.*|APP_SECRET=test-secret-key-for-ci|g' .env
-        sed -i 's|DATABASE_URL=.*|DATABASE_URL="postgresql://test:test@localhost:5432/test_db"|g' .env
 
     - name: Install PHP dependencies
       run: |
@@ -55,7 +54,20 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
-        go-version: '1.22'
+        go-version: '1.23'
+        cache: false
+
+    - name: Verify market-trading go.sum
+      run: |
+        cd services/market-trading
+        echo "=== Checking go.sum exists ==="
+        ls -la go.sum
+        echo "=== IBM/sarama entries in go.sum ==="
+        grep "github.com/IBM/sarama v1.43.0" go.sum || echo "ERROR: IBM/sarama not found!"
+        echo "=== Running go mod verify ==="
+        go mod verify
+        echo "=== Running go mod download ==="
+        go mod download
 
     - name: Go Syntax Check (pricing-api)
       run: |
@@ -70,6 +82,9 @@ jobs:
         go fmt ./...
         go vet ./...
         echo "✅ Go syntax check passed for pricing-fetcher"
+
+    # market-trading syntax check skipped - requires generated proto files
+    # Full validation happens in Docker build during ci-cd workflow
 
     - name: Go Tests (basic)
       run: |
@@ -87,6 +102,8 @@ jobs:
         else
           echo "ℹ️  No test files found, skipping Go tests"
         fi
+
+        # market-trading tests skipped - requires generated proto files
 
     - name: Set up Node.js
       uses: actions/setup-node@v4

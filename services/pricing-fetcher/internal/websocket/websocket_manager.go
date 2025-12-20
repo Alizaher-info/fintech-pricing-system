@@ -108,7 +108,7 @@ func (wm *WebSocketManager) processPriceUpdates() {
 	ticker := time.NewTicker(wm.aggregator.GetAggregationInterval())
 	defer ticker.Stop()
 	
-	for {
+	for { // Infinite loop to process incoming messages and ticker
 		select {
 		case <-wm.stopChan:
 			logger.Info("Stopping WebSocket price processor...")

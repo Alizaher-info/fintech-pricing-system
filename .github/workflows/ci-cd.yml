@@ -66,6 +66,15 @@ jobs:
           echo "✅ No Go tests found for pricing-fetcher"
         fi
 
+    - name: Run Go tests (market-trading)
+      run: |
+        cd services/market-trading
+        if ls *_test.go 1> /dev/null 2>&1; then
+          go test -v ./...
+        else
+          echo "✅ No Go tests found for market-trading"
+        fi
+
   build-and-push:
     needs: test
     runs-on: ubuntu-latest

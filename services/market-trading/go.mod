@@ -1,26 +1,25 @@
-module services
+module services/market-trading
 
-go 1.22
+go 1.23.0
 
-require google.golang.org/grpc v1.65.0 // gRPC framework
-
-require google.golang.org/protobuf v1.34.1 // Protocol Buffers support
-
-require github.com/golang-jwt/jwt/v5 v5.1.0 // JWT authentication
-
-require github.com/lib/pq v1.10.9 // to connect to Postgres DB
-
-require github.com/joho/godotenv v1.5.1 // to load .env files
-
-require github.com/IBM/sarama v1.43.0 // Kafka client library
-
-require github.com/gorilla/websocket v1.5.1 // WebSocket client for Binance
+toolchain go1.23.12
 
 require (
+	github.com/IBM/sarama v1.43.0
+	github.com/go-redis/redis/v8 v8.11.5
+	github.com/joho/godotenv v1.5.1
+	google.golang.org/grpc v1.60.1
+	google.golang.org/protobuf v1.33.0
+)
+
+require (
+	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/eapache/go-resiliency v1.6.0 // indirect
 	github.com/eapache/go-xerial-snappy v0.0.0-20230731223053-c322873962e3 // indirect
 	github.com/eapache/queue v1.1.0 // indirect
+	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
@@ -33,9 +32,9 @@ require (
 	github.com/klauspost/compress v1.17.7 // indirect
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
-	golang.org/x/crypto v0.23.0 // indirect
-	golang.org/x/net v0.25.0 // indirect
-	golang.org/x/sys v0.20.0 // indirect
-	golang.org/x/text v0.15.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240528184218-531527333157 // indirect
+	golang.org/x/crypto v0.36.0 // indirect
+	golang.org/x/net v0.38.0 // indirect
+	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/text v0.23.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240108191215-35c7eff3a6b1 // indirect
 )
