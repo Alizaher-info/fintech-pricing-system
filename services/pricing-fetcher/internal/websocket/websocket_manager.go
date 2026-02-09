@@ -91,32 +91,59 @@ func (wm *WebSocketManager) Start() error {
 	
 	logger.Info("Connected to Binance WebSocket")
 	
-	// Start processing price updates
-	wm.wg.Add(1)
-	go wm.processPriceUpdates()
+	// Start multiple workers to process price updates faster (parallel processing)
+	const numWorkers = 3
+	logger.Info(fmt.Sprintf("Starting %d parallel workers to process price updates", numWorkers))
+	for i := 0; i < numWorkers; i++ {
+		wm.wg.Add(1)
+		go wm.processPriceUpdates(i + 1) // Pass worker ID
+	}
 	
 	return nil
 }
 
 // processPriceUpdates listens to price updates from WebSocket and aggregates them
-func (wm *WebSocketManager) processPriceUpdates() {
+// Uses batch processing to handle high-frequency trades efficiently
+func (wm *WebSocketManager) processPriceUpdates(workerID int) {
 	defer wm.wg.Done()
 	
-	logger.Info("WebSocket price processor started")
+	logger.Info(fmt.Sprintf("WebSocket price processor Worker #%d started with batch processing", workerID))
 	
 	// Create ticker for OHLC aggregation (every 4 seconds)
 	ticker := time.NewTicker(wm.aggregator.GetAggregationInterval())
 	defer ticker.Stop()
 	
+	// Batch processing: drain multiple messages at once
+	const maxBatchSize = 100
+	priceChannel := wm.binanceClient.PriceUpdates()
+	
 	for { // Infinite loop to process incoming messages and ticker
 		select {
 		case <-wm.stopChan:
-			logger.Info("Stopping WebSocket price processor...")
+			logger.Info(fmt.Sprintf("Stopping WebSocket price processor Worker #%d...", workerID))
 			return
 			
-		case priceUpdate := <-wm.binanceClient.PriceUpdates():
-			// Add trade to aggregator (does NOT save to database yet)
+		case priceUpdate := <-priceChannel:
+			// Process first message
 			wm.aggregator.AddTrade(priceUpdate.Symbol, priceUpdate.Price, priceUpdate.Volume)
+			
+			// Batch drain: process additional messages if available (non-blocking)
+			batchCount := 1
+			for i := 0; i < maxBatchSize; i++ {
+				select {
+				case additionalUpdate := <-priceChannel:
+					wm.aggregator.AddTrade(additionalUpdate.Symbol, additionalUpdate.Price, additionalUpdate.Volume)
+					batchCount++
+				default:
+					// No more messages available, exit batch processing
+					goto batchDone
+				}
+			}
+		batchDone:
+			if batchCount > 10 {
+				// Only log when processing significant batches
+				logger.Debug(fmt.Sprintf("Processed batch of %d trades", batchCount))
+			}
 			
 		case <-ticker.C:
 			// Time to save aggregated candles (every 4 seconds)

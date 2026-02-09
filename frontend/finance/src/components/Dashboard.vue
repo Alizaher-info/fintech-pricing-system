@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import LivePrices from './LivePrices.vue';
 
 interface User {
   user_id?: number;
@@ -191,6 +192,9 @@ const recentTransactions = ref([
 
       <!-- Security & System Info -->
       <div class="space-y-6">
+        
+        <!-- Live Crypto Prices -->
+        <LivePrices />
         
         <!-- Security Features -->
         <div class="bg-white/10 backdrop-blur-md rounded-xl shadow-sm border border-white/10 p-6">

@@ -22,6 +22,8 @@ type BinanceClient struct {
 	reconnectDelay time.Duration
 	mu             sync.RWMutex
 	isConnected    bool
+	droppedCount   int64 // Track dropped messages
+	lastLogTime    time.Time // Last time we logged dropped messages
 }
 
 // PriceUpdate represents a price update from Binance WebSocket
@@ -47,7 +49,7 @@ func NewBinanceClient(symbols []string) *BinanceClient {
 	return &BinanceClient{
 		url:            "wss://stream.binance.com:9443/stream",
 		symbols:        symbols,
-		priceChannel:   make(chan PriceUpdate, 100),
+		priceChannel:   make(chan PriceUpdate, 50000), // Large buffer for high-frequency trades (BTC has 1000+ trades/4sec)
 		errorChannel:   make(chan error, 10),
 		reconnectDelay: 5 * time.Second,
 		isConnected:    false,
@@ -149,8 +151,20 @@ func (c *BinanceClient) readMessages() {
 		// Send to price channel (non-blocking)
 		select {
 		case c.priceChannel <- priceUpdate:
+			// Message sent successfully
 		default:
-			logger.Error("Price channel full, dropping message")
+			// Channel is full, drop message
+			c.droppedCount++
+			
+			// Log dropped messages summary every 10 seconds (not every drop)
+			now := time.Now()
+			if now.Sub(c.lastLogTime) >= 10*time.Second {
+				if c.droppedCount > 0 {
+					logger.Error(fmt.Sprintf("⚠️ Dropped %d messages in last 10s (channel full, increase buffer or processing speed)", c.droppedCount))
+					c.droppedCount = 0
+				}
+				c.lastLogTime = now
+			}
 		}
 	}
 }
